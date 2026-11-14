@@ -15,7 +15,7 @@ export const frames = [
   { id: 'retro', name: 'Retro', color: '#f1e2c9', symbol: '✷' },
 ] as const;
 export type FrameId = typeof frames[number]['id'];
-export type Photo = { src: string; filterName: string };
+export type Photo = { id: string; originalSrc: string; origin: 'camera' | 'upload'; edit: import('./filters').EditRecipe };
 export type FrameOptions = { frame: FrameId; color: string; caption: string; showDate: boolean; date: Date };
 
 // All frame previews and exports use these same coordinates.

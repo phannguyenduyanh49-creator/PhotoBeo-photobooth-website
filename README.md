@@ -1,78 +1,125 @@
-# PhotoBeo
+﻿# PhotoBeo 2.0
 
-Photobooth tiếng Việt với React, TypeScript, Vite, Tailwind CSS và Lucide Icons. Toàn bộ ảnh được xử lý tại trình duyệt; không có backend, tài khoản hay dịch vụ nhận ảnh. Font Nunito và Dancing Script được đóng gói cùng ứng dụng, không gọi Google Fonts.
+Photobooth tiếng Việt phong cách pastel với camera thật, chỉnh màu không phá hủy ảnh gốc và **Góc kỷ niệm** riêng tư tại `/memory-wall`.
 
-## Chạy trên máy
+React 19 + TypeScript + Vite + Tailwind + Lucide được giữ lại. Backend mới dùng Node 24, Express, SQLite, Sharp và Canvas để kiểm tra ảnh, tự ghép thành phẩm và xác thực quyền sử dụng.
 
-Yêu cầu Node.js 22.12+ hoặc Node.js 24, npm và trình duyệt hiện đại.
+## Chạy local
+
+Cài **Node.js 24+**, rồi chạy tại thư mục dự án:
 
 ```powershell
 cd D:\Prj\photobeo
-npm.cmd install
+npm.cmd ci
 npm.cmd run dev
 ```
 
-Mở địa chỉ Vite in ra, mặc định `http://localhost:5173`. Dùng `npm.cmd` trên PowerShell nếu máy chặn script `npm.ps1`; trên macOS/Linux có thể dùng `npm` như bình thường. Sau khi có `package-lock.json`, dùng `npm ci` để cài đúng các phiên bản đã khóa.
+- Frontend: http://localhost:5173
+- Góc kỷ niệm: http://localhost:5173/memory-wall
+- Backend: http://127.0.0.1:3001 (frontend dùng proxy `/api`)
+- Dữ liệu thật local: `.data/photobeo.sqlite`. Không xóa nếu muốn giữ thư viện.
+- Không bắt buộc có `.env` để chạy local. Dùng `.env.example` nếu cần đổi cấu hình.
+- Trên macOS/Linux dùng `npm`; trên PowerShell dùng `npm.cmd` nếu chính sách chặn `npm.ps1`.
 
-```sh
-npm run typecheck
-npm test
-npm run build
-npm run preview
-```
+Camera cần HTTPS hoặc localhost. Camera trên điện thoại truy cập địa chỉ IP LAN qua HTTP có thể bị chặn; vẫn có thể tải ảnh từ thiết bị.
 
-`dist/` là bản production, có thể phục vụ trên static hosting có HTTPS. Không mở trực tiếp `index.html` bằng `file://`.
+## Photobooth và chỉnh màu
 
-## Sử dụng
+- 5 bố cục: dải 1×3, dải 1×4, lưới 2×2, lưới 2×3, Polaroid.
+- 5 kiểu khung, màu tùy chọn, lời nhắn 50 ký tự, bật/tắt ngày.
+- Bật/tắt camera, chọn thiết bị, trước/sau, lật gương đồng nhất với ảnh chụp.
+- Chụp từng ảnh/tự động, đếm ngược 0/3/5/10 hoặc 1–15 giây; hủy, chụp lại từng ô/cả bộ.
+- JPEG, PNG, WebP tối đa 15 MB/60 MP ở client, chuẩn hóa 1600×1200, crop cover không kéo méo.
+- **24 preset** thuộc Cơ bản, Pastel, Film, Sáng tạo, thumbnail từ cùng ảnh thật. Khi có ảnh/camera, dùng preview phù hợp.
+- 10 điều chỉnh: độ sáng, tương phản, độ bão hòa, độ ấm, tint, vùng sáng, vùng tối, hạt phim, tối góc, cường độ bộ lọc.
+- Chọn ảnh đã chụp/tải lên để chỉnh lại. Có Trước/Sau, khôi phục Original, áp dụng cả bộ và lưu preset cá nhân trên trình duyệt.
+- `originalSrc` và `EditRecipe` được giữ riêng. Mọi lần chỉnh đều render lại từ gốc; không chồng bộ lọc vào JPEG đã chỉnh.
+- Preview camera, thumbnail, PNG và backend dùng chung pipeline pixel. Preview kích thước nhỏ được lấy mẫu để tiết kiệm CPU; preview thành phẩm và file tải dùng cùng PNG.
+- Flash/âm thanh shutter tùy chọn, ảnh vào danh sách, hiệu ứng lên màu và trái tim hoàn thành; có nút tắt hiệu ứng và hỗ trợ reduced motion.
+- Thành phẩm lớn hơn, click xem lớn, zoom, toàn màn hình, tải HD, chia sẻ bằng Web Share nếu trình duyệt hỗ trợ.
+- PNG có cạnh dài 2400 px; tên `PhotoBeo-YYYYMMDD-HHmmss.png`.
 
-1. Chọn dải 1×3, dải 1×4, lưới 2×2, lưới 2×3 hoặc Polaroid.
-2. Chọn khung hồng pastel, tối giản, trái tim, nơ hoặc retro. Đổi màu, thêm lời nhắn tối đa 50 ký tự, bật/tắt ngày chụp.
-3. Bấm **Bật camera** và cấp quyền. Có lật gương, chọn webcam và chuyển camera trước/sau nếu thiết bị hỗ trợ.
-4. Chọn bộ lọc và đếm ngược 0/3/5/10 giây, hoặc tùy chỉnh 1–15 giây. Chụp từng ảnh hoặc tự động các ô còn trống. Bấm **Hủy chụp** để dừng; ảnh đã chụp vẫn được giữ.
-5. Chọn một ô để thay thế bằng ảnh chụp hoặc ảnh tải lên. Mỗi ô có nút tải ảnh và chụp lại. **Chụp lại tất cả** xóa bộ ảnh hiện tại.
-6. Khi đủ ảnh, chọn **Xem thành phẩm**, rồi **Tải ảnh**. Ảnh PNG có cạnh dài 2400 px, tên `PhotoBeo-YYYYMMDD-HHmmss.png`. Preview thành phẩm và đường dẫn tải dùng chung một Blob PNG.
+Đổi bố cục giữ ảnh dư trong phiên, xuất lại theo bố cục đang chọn. Phiên chụp và ảnh gốc vẫn ở bộ nhớ trình duyệt: reload/đóng trang sẽ mất phiên chưa lưu. Preset cá nhân chỉ chứa thông số màu, không chứa ảnh và không có giá trị xác thực.
 
-Ảnh JPEG, PNG, WebP dưới hoặc bằng 15 MB và không quá 60 megapixel được chấp nhận. Có thể tải nhiều ảnh để lấp các ô trống. Bộ lọc đang chọn được ghi vào pixel ảnh chụp/tải lên tiếp theo; ảnh đã có không bị thay đổi khi chuyển bộ lọc. Lật gương chỉ áp dụng camera, đồng nhất giữa video và ảnh chụp. Ảnh được crop cover ở tâm, không kéo méo.
+## Góc kỷ niệm
 
-Đổi bố cục giữ các ảnh hiện có theo thứ tự. Các ảnh ngoài số ô của bố cục nhỏ vẫn nằm trong phiên và xuất hiện lại khi chọn bố cục lớn. Chụp tự động chỉ lấp ô trống. Ảnh không được lưu bền vững: tải lại/đóng trang sẽ mất phiên, vì vậy hãy tải PNG trước khi rời trang.
+1. Hoàn thành một bộ ảnh trong photobooth.
+2. Chọn **Thêm vào Creative Wall**.
+3. Đọc thông báo và tích đồng ý gửi ảnh/thiết lập để server xử lý và lưu thành phẩm riêng tư.
+4. Server kiểm tra nguồn ảnh, tự render PNG, tạo record verified thuộc phiên hiện tại.
+5. Mở **Góc kỷ niệm**, dán ảnh từ thư viện, kéo vị trí, xoay, đổi kích thước giữ tỷ lệ và xếp lớp.
+6. Thêm sticker, ghi chú, băng dính; Undo/Redo (Ctrl/Cmd+Z, Shift+Z hoặc Ctrl/Cmd+Y).
+7. **Lưu bảng** để lưu bố cục. **Xuất PNG** xác thực/lưu bố cục trước, rồi xuất trang giấy 3200×2400 px.
 
-## Camera và quyền truy cập
+Chọn đối tượng rồi dùng các tay nắm hoặc bảng chỉnh bên phải. Có thể dùng phím mũi tên để di chuyển, giữ Shift để bước lớn hơn. Trên màn hình nhỏ, trang giấy có vùng cuộn riêng và zoom.
 
-- Camera hoạt động trên **HTTPS** hoặc **localhost**. `http://192.168.x.x:5173` trên điện thoại thường không phải ngữ cảnh bảo mật; cần HTTPS để thử camera trên thiết bị khác. Tải ảnh lên vẫn dùng được khi không có camera.
-- Nếu từ chối quyền: mở cài đặt quyền của trang trong trình duyệt rồi bật lại camera.
-- Nếu camera bận: đóng ứng dụng khác đang giữ thiết bị. Nếu không có webcam: kết nối webcam hoặc tải ảnh.
-- Chuyển trước/sau là yêu cầu `facingMode`; thiết bị chỉ có một camera có thể tiếp tục dùng camera đó. Danh sách camera thực tế được lấy sau khi người dùng cấp quyền.
-- Tracks được dừng khi tắt/đổi camera, xem thành phẩm, rời trang hoặc component bị tháo. Yêu cầu camera trả về muộn sau khi hủy cũng được dừng.
-- Không thu âm. Không tự mở camera, không gửi ảnh/video lên máy chủ.
+Mỗi phiên có một bảng riêng tư; không có bảng công khai hoặc URL chia sẻ ảnh công khai. Không nhận ảnh kéo trực tiếp từ máy vào wall. Ảnh upload phải đi qua photobooth và đăng ký thành phẩm.
+
+Lưu revision ngăn tab cũ ghi đè bản mới. Nếu có xung đột, tải bản đã lưu và sửa tiếp. Xóa một đối tượng chỉ gỡ khỏi trang giấy; xóa ảnh trong thư viện hoặc xóa cả phiên là thao tác riêng có xác nhận.
+
+## Lưu trữ, quyền riêng tư và xác thực
+
+SQLite chứa phiên, record ảnh, PNG BLOB và bố cục. Ảnh gốc chỉ xử lý tạm trong bộ nhớ của request; không lưu trên server. Browser không tự gửi ảnh nếu chưa tích đồng ý lưu.
+
+Record gồm `photoId`, `createdAt`, `origin`, `assetId`, `ownerSessionId`, `verificationStatus`, `photoBeoVersion`; ID, owner, trạng thái verified, ngày và version đều do server tạo. API không tin metadata xác thực client tự gửi.
+
+Token phiên 256 bit nằm trong cookie HttpOnly, SameSite=Strict; production dùng Secure và prefix `__Host-`. Server kiểm tra quyền trên mỗi lần đọc ảnh hoặc lưu bảng, kiểm tra Origin và CSRF token cho thao tác ghi. Có giới hạn file/body/pixel, rate limit, quota, kiểm tra byte ảnh và loại bỏ metadata.
+
+**“Đã xác thực” nghĩa là thành phẩm được server PhotoBeo kiểm tra/render/đăng ký và thuộc phiên hiện tại.** Nó không chứng thực tác giả hay nguồn webcam vật lý. Origin mô tả luồng đăng ký camera/upload, không phải bằng chứng phần cứng. Watermark không có giá trị xác thực.
+
+Phiên ẩn danh có thời hạn **30 ngày**. Mất cookie/hết hạn sẽ không khôi phục quyền truy cập ở bản này; hãy tải PNG để giữ lâu dài. Dữ liệu hết hạn được dọn khi khởi động và mỗi giờ. Có thể xóa ảnh hoặc toàn bộ dữ liệu phiên trong giao diện.
+
+Chi tiết: [Mô hình bảo mật](docs/SECURITY.md).
 
 ## Kiểm tra
 
 ```powershell
+npm.cmd run typecheck
 npm.cmd test
+npm.cmd run build
 npm.cmd run test:e2e
 ```
 
-Vitest kiểm tra số ô, hình học khung, crop cover, hủy countdown, dọn timer, kiểm tra tệp và tên file.
+- Unit/integration: hình học/crop, countdown cancellation, tệp ảnh, 24 preset, chỉnh màu từ gốc, giới hạn wall; backend thật với SQLite và hai phiên độc lập.
+- Security: ID giả/khác owner, forged metadata, CSRF/Origin, MIME giả/tệp hỏng, revision conflict, persistence sau restart, retry idempotent, xóa record/asset.
+- E2E: Chrome với camera giả, 5 bố cục, đổi filter, upload, xuất/tải PNG, mobile/tablet, đồng ý lưu, kéo/xoay/resize/layer/undo/redo, save/reload/export wall, từ chối file trực tiếp và backend lỗi.
+- E2E dùng data directory riêng dưới `.test-data`, không ghi vào thư viện local thường dùng.
+- Ảnh QA/PNG thử: `artifacts/`; trace lỗi: `test-results/`.
+- Chrome cần được cài sẵn. Có thể đặt `PLAYWRIGHT_CHANNEL=msedge` để dùng Edge.
 
-Playwright mặc định dùng Chrome được cài trên máy với camera giả, không bật webcam thật. Có thể đổi sang Edge trong PowerShell bằng `$env:PLAYWRIGHT_CHANNEL='msedge'`, hoặc Chromium của Playwright bằng `$env:PLAYWRIGHT_CHANNEL='chromium'` sau khi cài browser tương ứng. Test tự mở Vite ở cổng 5173; trên macOS/Linux lệnh cấu hình server vẫn chạy qua Node.
+Cần kiểm tra thêm webcam thật, camera trước/sau trên điện thoại, Safari iOS và bảng chia sẻ hệ điều hành. Các bài tự động không thay thế kiểm thử phần cứng thật.
 
-Các kiểm tra trình duyệt bao gồm chụp tự động/chụp lại/hủy, thay bố cục giữ ảnh, bộ lọc ghi vào pixel, tải lên, xuất cả 5 bố cục, tải PNG, từ chối quyền camera, giao diện mobile và đóng dialog bằng Escape. Ảnh chụp giao diện và PNG xuất thử nằm trong `artifacts/`. Trace lỗi được lưu ở `test-results/`.
+## Deploy
 
-Cần thử thêm trên webcam và điện thoại thật để xác nhận chất lượng ảnh, quyền hệ điều hành, chuyển camera trước/sau và hành vi lưu ảnh của Safari iOS. Camera giả và viewport mobile kiểm chứng luồng ứng dụng, không thay thế hoàn toàn kiểm tra phần cứng.
+Frontend vẫn deploy Vercel được. Backend cần Node 24 với **persistent disk**, HTTPS và cấu hình origin; không đặt SQLite trong filesystem tạm của Vercel Functions.
 
-## Cấu trúc
+Bàn giao có `vercel.json` cho route SPA, script cấu hình API proxy và Dockerfile tùy chọn. Chưa có URL backend production nên chưa cấu hình proxy/deploy thật.
+
+Xem [hướng dẫn local và deploy](docs/DEPLOYMENT.md). Không có secret hardcode trong frontend.
+
+## Cấu trúc chính
 
 ```text
 src/
-  App.tsx                  Điều phối phiên chụp, upload và thành phẩm
-  components/              Thiết lập, ảnh đã chụp, thumbnail, preview, dialog
-  hooks/useCamera.ts       Stream, thiết bị, quyền, dọn tracks và chống race
-  hooks/useCapture.ts      Phiên chụp, flash, hủy và khóa thao tác
-  lib/layouts.ts           Nguồn hình học chung cho preview và PNG
-  lib/filters.ts           Bộ lọc CSS preview và xử lý pixel tương ứng
-  lib/images.ts            Decode, crop, ghép Canvas, Blob và tên file
-  lib/countdown.ts         Timer có AbortSignal
-  lib/core.test.ts         Kiểm tra logic
-  styles.css               Giao diện và responsive
-tests/photobooth.spec.ts    Kiểm tra trình duyệt
+  App.tsx                       Điều phối photobooth và route
+  components/editor/            Bộ lọc, thumbnail ảnh thật, camera preview pixel
+  components/ResultViewer.tsx   Zoom, full screen, HD, share, đồng ý lưu
+  components/wall/              Canvas, thư viện và bảng chỉnh đối tượng
+  pages/MemoryWall.tsx           Luồng scrapbook riêng tư
+  hooks/                        Camera, countdown, shutter, route, history
+  lib/filters.ts                24 preset và pipeline pixel chung
+  lib/frameRenderer.ts          Hình học/khung dùng ở browser và server
+  lib/wall.ts                   Đối tượng và renderer wall chung
+  lib/api.ts                    Cookie session, CSRF và API client
+server/
+  app.ts                        Sessions, ownership, quota, SQLite, routes
+  schema.ts                     Validation strict
+  render.ts                     Decode/re-encode và render PNG canonical
+  security.test.ts              Kiểm tra server với hai phiên độc lập
+scripts/
+  dev.mjs                       Chạy frontend + backend
+  configure-vercel.mjs           Sinh reverse proxy từ backend URL thật
 ```
+
+Audit ban đầu: [UPGRADE-AUDIT.md](docs/UPGRADE-AUDIT.md). Ảnh mẫu bộ lọc: Amelia Cui / Unsplash, nguồn và giấy phép tại [ASSET-CREDITS.md](public/ASSET-CREDITS.md). Font được đóng gói local.
+

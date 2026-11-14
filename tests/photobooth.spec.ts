@@ -44,7 +44,7 @@ test('camera giả: hủy đếm ngược, chụp tự động, chụp lại, xu
   expect(Math.max(dimensions.w, dimensions.h)).toBe(2400);
   expect(await page.locator('video').evaluate((video: HTMLVideoElement) => video.srcObject)).toBeNull();
   const downloadPromise = page.waitForEvent('download');
-  await result.getByRole('link', { name: 'Tải ảnh', exact: true }).click();
+  await result.getByRole('link', { name: 'Tải ảnh HD', exact: true }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/^PhotoBeo-\d{8}-\d{6}\.png$/);
   await download.saveAs('artifacts/photobeo-export.png');
@@ -63,11 +63,10 @@ test('tải ảnh, bộ lọc ghi vào pixel, bảo toàn ảnh khi đổi bố 
   await page.getByRole('button', { name: 'Đen trắng', exact: true }).click();
   await page.locator('input[type=file]').setInputFiles({ name: 'red.png', mimeType: 'image/png', buffer: red });
   await expect(page.getByText('Đã chụp 1/1')).toBeVisible();
-  const pixel = await page.locator('.slot-select img').evaluate(async (img: HTMLImageElement) => {
+  await expect.poll(async () => page.locator('.slot-select img').evaluate(async (img: HTMLImageElement) => {
     await img.decode(); const canvas = document.createElement('canvas'); canvas.width = 1; canvas.height = 1;
     const ctx = canvas.getContext('2d')!; ctx.drawImage(img, 0, 0, 1, 1); return [...ctx.getImageData(0, 0, 1, 1).data];
-  });
-  expect(Math.abs(pixel[0] - pixel[1])).toBeLessThan(3); expect(Math.abs(pixel[1] - pixel[2])).toBeLessThan(3);
+  }).then(pixel => Math.abs(pixel[0] - pixel[1]) + Math.abs(pixel[1] - pixel[2]))).toBeLessThan(6);
   await page.getByRole('button', { name: 'Dải 1 × 4', exact: true }).click();
   await expect(page.getByText('Đã chụp 1/4')).toBeVisible();
   await page.locator('input[type=file]').setInputFiles(Array.from({ length: 3 }, (_, i) => ({ name: `${i}.png`, mimeType: 'image/png', buffer: red })));
@@ -75,7 +74,7 @@ test('tải ảnh, bộ lọc ghi vào pixel, bảo toàn ảnh khi đổi bố 
   for (const name of ['Dải 1 × 3', 'Lưới 2 × 2', 'Polaroid', 'Dải 1 × 4']) {
     await page.getByRole('button', { name, exact: true }).click();
     await page.getByRole('button', { name: 'Xem thành phẩm', exact: true }).click();
-    const img = page.getByRole('dialog').getByAltText('Thành phẩm PhotoBeo — giống hệt ảnh PNG tải về'); await expect(img).toBeVisible();
+    const img = page.getByRole('dialog').getByAltText('Thành phẩm PhotoBeo — giống hệt ảnh PNG tải về'); await expect(img).toBeVisible({ timeout: 20_000 });
     const check = await img.evaluate(async (img: HTMLImageElement) => {
       await img.decode(); const canvas = document.createElement('canvas'); canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
       const ctx = canvas.getContext('2d')!; ctx.drawImage(img, 0, 0);

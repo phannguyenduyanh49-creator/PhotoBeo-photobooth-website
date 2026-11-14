@@ -10,3 +10,6 @@ dist/
 .env
 .env.*
 !.env.example
+.data/
+.test-data/
+.cache/
