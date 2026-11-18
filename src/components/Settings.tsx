@@ -28,7 +28,8 @@ export function Settings({ disabled, layout, onLayout, options, onOptions, timer
         <input id="caption" maxLength={50} value={options.caption} onChange={e => onOptions({ caption: e.target.value })} placeholder="Một ngày thật xinh ♡" />
         <label className="switch-row"><span>In ngày chụp</span><input className="switch" type="checkbox" checked={options.showDate} onChange={e => onOptions({ showDate: e.target.checked })} /></label>
       </div>
-      <div className="setting-section timer-section">
+      <div className="setting-section"><label className="field-label">Sticker nhỏ<select aria-label="Sticker trên khung" value={options.sticker || 'none'} onChange={e => onOptions({ sticker: e.target.value as FrameOptions['sticker'] })}><option value="none">Không sticker</option><option value="heart">♥ Trái tim</option><option value="star">✦ Ngôi sao</option><option value="flower">✿ Bông hoa</option></select></label></div>
+      <div className="setting-section timer-section" hidden>
         <h3><Timer size={15} /> Đếm ngược</h3>
         <div className="select-wrap"><select aria-label="Thời gian đếm ngược" value={timer} onChange={e => onTimer(e.target.value)}><option value="0">Không đếm ngược</option><option value="3">3 giây · Vừa đủ tạo dáng</option><option value="5">5 giây</option><option value="10">10 giây</option><option value="custom">Tùy chỉnh (1–15 giây)</option></select><ChevronDown size={15} /></div>
         {timer === 'custom' && <label className="custom-timer">Số giây <input type="number" min="1" max="15" value={customTimer} onChange={e => onCustomTimer(Math.max(1, Math.min(15, Number(e.target.value) || 1)))} /></label>}

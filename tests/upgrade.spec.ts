@@ -1,9 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
 async function uploadOne(page: Page) {
-  await page.getByRole('button', { name: 'Polaroid', exact: true }).click();
   await page.locator('input[type=file]').setInputFiles('public/filter-sample.jpg');
-  await expect(page.getByText('Đã chụp 1/1')).toBeVisible();
+  await expect(page.getByText('Đã chụp 1/6')).toBeVisible();
+  await page.getByRole('button', { name: 'Tiếp tục →', exact: true }).click();
+  await page.getByRole('button', { name: 'Polaroid', exact: true }).click();
+  await page.getByRole('button', { name: 'Tiếp tục →', exact: true }).click();
 }
 const resultImage = (page: Page) => page.getByAltText('Thành phẩm PhotoBeo — giống hệt ảnh PNG tải về');
 
@@ -40,13 +42,13 @@ test('đồng ý lưu, xác thực, scrapbook kéo/xoay/resize/layer, undo/redo,
   await page.goto('/'); await uploadOne(page);
   await page.getByRole('button', { name: 'Xem thành phẩm', exact: true }).click(); await expect(resultImage(page)).toBeVisible({ timeout: 20_000 });
   expect(uploads).toHaveLength(0);
-  await page.getByRole('button', { name: 'Thêm vào Creative Wall' }).click();
+  await page.getByRole('button', { name: 'Lưu vào lịch sử' }).click();
   await expect(page.getByRole('button', { name: 'Đồng ý và lưu ảnh' })).toBeDisabled(); expect(uploads).toHaveLength(0);
   await page.getByRole('checkbox', { name: 'Tôi đồng ý gửi ảnh và lưu thành phẩm riêng tư.' }).check();
   await page.getByRole('button', { name: 'Đồng ý và lưu ảnh' }).click();
-  await expect(page.getByRole('button', { name: 'Mở Góc kỷ niệm' })).toBeVisible({ timeout: 30_000 }); expect(uploads).toHaveLength(1);
-  await expect(resultImage(page)).toHaveAttribute('src', /^\/api\/photos\//);
-  await page.getByRole('button', { name: 'Mở Góc kỷ niệm' }).click(); await expect(page).toHaveURL(/memory-wall/);
+  await expect(page.getByRole('button', { name: 'Đã lưu lịch sử 30 ngày' })).toBeVisible({ timeout: 30_000 }); expect(uploads).toHaveLength(1);
+  await expect(resultImage(page)).toHaveAttribute('src', /^\/api\/assets\//);
+  await page.getByRole('button', { name: 'Thêm vào Memory Wall' }).click(); await expect(page).toHaveURL(/memory-wall/);
   await expect(page.locator('.wall-hit')).toHaveCount(1);
   const item = page.getByRole('button', { name: 'Ảnh trên bảng 1', exact: true }); const box = (await item.boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down(); await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2 + 30, { steps: 5 }); await page.mouse.up();

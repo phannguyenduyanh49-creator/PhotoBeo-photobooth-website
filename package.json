@@ -1,9 +1,11 @@
 {
   "name": "photobeo",
   "private": true,
-  "version": "2.0.0",
+  "version": "3.0.0",
   "type": "module",
-  "engines": { "node": ">=24.0.0" },
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:client": "vite --host 127.0.0.1",
@@ -13,9 +15,12 @@
     "typecheck": "tsc -b",
     "preview": "vite preview --host 0.0.0.0",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "cleanup": "node --env-file-if-exists=.env --import tsx server/maintenance.ts",
+    "migrate": "node --env-file-if-exists=.env --import tsx server/maintenance.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1171.0",
     "@fontsource/dancing-script": "^5.2.0",
     "@fontsource/nunito": "^5.2.0",
     "@napi-rs/canvas": "^1.1.1",
@@ -25,8 +30,8 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "sharp": "^0.35.5",
-    "zod": "^4.6.7",
-    "tsx": "^4.23.15"
+    "tsx": "^4.23.15",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.0",

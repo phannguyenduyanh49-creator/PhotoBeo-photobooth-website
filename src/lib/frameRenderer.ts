@@ -41,6 +41,10 @@ export function paintFrame(ctx: CanvasRenderingContext2D, layout: Layout, images
     }
   });
   decorate(ctx, options, geometry.width, geometry.height, geometry.padding);
+  if (options.sticker && options.sticker !== 'none') {
+    ctx.fillStyle = '#be6a8c'; ctx.font = '40px Arial'; ctx.textAlign = 'center';
+    ctx.fillText({ heart: '♥', star: '✦', flower: '✿' }[options.sticker], geometry.width - 45, geometry.height - geometry.footer + 35);
+  }
   const y = geometry.height - geometry.footer + 12;
   // A translucent plate keeps text legible on custom dark frame colors.
   ctx.fillStyle = 'rgba(255,255,255,.72)'; ctx.fillRect(geometry.padding, y - 16, geometry.width - geometry.padding * 2, geometry.footer - 18);
@@ -50,6 +54,6 @@ export function paintFrame(ctx: CanvasRenderingContext2D, layout: Layout, images
   let caption = options.caption.trim() || 'Lưu chút xinh, giữ chút nhớ';
   while (ctx.measureText(caption).width > geometry.width - geometry.padding * 2 - 36) caption = caption.slice(0, -2) + '…';
   ctx.fillText(caption, geometry.width / 2, y + 65);
-  if (options.showDate) { ctx.font = '400 18px Nunito'; ctx.fillText(options.date.toLocaleDateString('vi-VN'), geometry.width / 2, y + 97); }
+  if (options.showDate) { ctx.font = '400 18px Nunito'; ctx.fillText(options.date.toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }), geometry.width / 2, y + 97); }
 
 }

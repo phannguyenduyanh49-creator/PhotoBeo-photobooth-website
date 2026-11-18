@@ -19,6 +19,8 @@ export type PhotoRecord = {
   photoId: string; assetId: string; createdAt: string; ownerSessionId: string;
   origin: 'camera' | 'upload'; verificationStatus: 'verified'; photoBeoVersion: string;
   width: number; height: number; url: string;
+  userId: string; sessionId: string; storageKey: string; expiresAt: string | null; permanent: boolean;
+  filter: import('./filters').EditRecipe[]; template: { layoutId: string };
 };
 
 export function boundedItem(item: WallItem): WallItem {

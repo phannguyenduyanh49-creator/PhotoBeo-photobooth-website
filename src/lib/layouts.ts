@@ -16,7 +16,7 @@ export const frames = [
 ] as const;
 export type FrameId = typeof frames[number]['id'];
 export type Photo = { id: string; originalSrc: string; origin: 'camera' | 'upload'; edit: import('./filters').EditRecipe };
-export type FrameOptions = { frame: FrameId; color: string; caption: string; showDate: boolean; date: Date };
+export type FrameOptions = { frame: FrameId; color: string; caption: string; showDate: boolean; date: Date; sticker?: 'none' | 'heart' | 'star' | 'flower' };
 
 // All frame previews and exports use these same coordinates.
 export function getGeometry(layout: Layout) {

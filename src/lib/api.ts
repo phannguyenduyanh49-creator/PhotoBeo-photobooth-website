@@ -1,7 +1,7 @@
 import type { PhotoRecord, SavedWall, WallDocument } from './wall';
 import type { FrameOptions, LayoutId, Photo } from './layouts';
 
-type Session = { sessionId: string; csrfToken: string; expiresAt: string };
+type Session = { sessionId: string; userId: string; csrfToken: string; expiresAt: string };
 let pendingSession: Promise<Session> | null = null;
 export function getSession() {
   if (!pendingSession) pendingSession = fetch('/api/session', { credentials: 'same-origin', cache: 'no-store' })
@@ -23,6 +23,14 @@ async function request<T>(path: string, method = 'GET', body?: unknown): Promise
   return readJson<T>(res);
 }
 export const getPhotos = () => request<{ photos: PhotoRecord[] }>('/photos');
+export const getWallPhotos = () => request<{ photos: PhotoRecord[] }>('/wall/photos');
+export const pinPhoto = (photoId: string) => request<{ photo: PhotoRecord }>('/wall/assets', 'POST', { photoId });
+export const deleteWallPhoto = (id: string) => request<void>('/wall/assets/' + encodeURIComponent(id), 'DELETE');
+export const deleteWall = () => request<void>('/wall', 'DELETE');
+export const createRecoveryKey = () => request<{ recoveryKey: string }>('/account/recovery-key', 'POST');
+export async function restoreAccount(recoveryKey: string) {
+  const session = await request<Session>('/account/restore', 'POST', { recoveryKey }); pendingSession = Promise.resolve(session); return session;
+}
 export const getWall = () => request<SavedWall>('/wall');
 export const saveWall = (wall: WallDocument, revision: number) => request<SavedWall>('/wall', 'PUT', { ...wall, revision });
 export const deletePhoto = (id: string) => request<void>('/photos/' + encodeURIComponent(id), 'DELETE');
@@ -31,7 +39,7 @@ export async function registerPhoto(photos: Photo[], layoutId: LayoutId, options
   const workflow = photos.every(p => p.origin === 'camera') ? 'camera' : 'upload';
   return request<{ photo: PhotoRecord }>(`/booth/${workflow}/complete`, 'POST', {
     consent: true, requestId, layoutId,
-    options: { frame: options.frame, color: options.color, caption: options.caption, showDate: options.showDate },
+    options: { frame: options.frame, color: options.color, caption: options.caption, showDate: options.showDate, date: options.date.toISOString(), sticker: options.sticker },
     photos: photos.map(p => ({ originalSrc: p.originalSrc, edit: p.edit })),
   });
 }

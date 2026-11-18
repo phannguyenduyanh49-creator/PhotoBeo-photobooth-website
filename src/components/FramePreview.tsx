@@ -12,7 +12,7 @@ export function FramePreview({ layout, photos, options, disabled }: { layout: La
   useEffect(() => {
     let disposed = false;
     setWorking(true);
-    const timer = setTimeout(() => composeFrame(layout, photos, options, 900).then(canvas => {
+    const timer = setTimeout(() => composeFrame(layout, photos, options, 2400).then(canvas => {
       if (!disposed && ref.current) { canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', 'Bản xem trước khung ảnh đã chọn'); ref.current.replaceChildren(canvas); setPreview(canvas.toDataURL('image/png')); setError(''); setWorking(false); }
     }).catch(() => { if (!disposed) { setError('Chưa tải được bản xem trước. Hãy thử đổi khung.'); setWorking(false); } }), 80);
     return () => { disposed = true; clearTimeout(timer); };

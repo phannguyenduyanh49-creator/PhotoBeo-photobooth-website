@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowDownToLine, Camera, Heart, LoaderCircle, Plus, Redo2, Save, ShieldCheck, StickyNote, Undo2 } from 'lucide-react';
-import { deletePhoto, deleteSession, getPhotos, getWall, saveWall } from '../lib/api';
+import { deletePhoto, deleteSession, getWallPhotos, getWall, saveWall, pinPhoto, deleteWallPhoto, deleteWall } from '../lib/api';
+import { navigate } from '../hooks/useRoute';
 import { emptyWall, stickers, type PhotoRecord, type WallDocument, type WallItem } from '../lib/wall';
 import { pngBlob } from '../lib/images';
 import { useWallHistory } from '../hooks/useWallHistory';
@@ -21,16 +22,19 @@ export function MemoryWall({ onBooth, initialPhotoId }: { onBooth: () => void; i
     const generation = ++loadGeneration.current;
     setLoading(true); setError('');
     try {
-      const [library, wall] = await Promise.all([getPhotos(), getWall()]);
+      const [library, wall] = await Promise.all([getWallPhotos(), getWall()]);
       if (!alive.current || generation !== loadGeneration.current) return;
       setConnected(true);
       setPhotos(library.photos); const doc = { items: wall.items, background: wall.background };
       history.reset(doc); setSaved(JSON.stringify(doc)); setRevision(wall.revision); setSelected(null);
       setMessage(wall.updatedAt ? `Đã tải bảng lưu lúc ${new Date(wall.updatedAt).toLocaleString('vi-VN')}.` : 'Trang giấy đang chờ những kỷ niệm của bạn.');
       if (!loadedInitial.current && initialPhotoId) {
-        loadedInitial.current = true; const record = library.photos.find(p => p.photoId === initialPhotoId);
+        const record = library.photos.find(p => p.photoId === initialPhotoId);
         if (record && !doc.items.some(i => i.photoId === record.photoId)) {
-          const item = photoItem(record, doc.items.length); history.change({ ...doc, items: [...doc.items, item] }); setSelected(item.id);
+          const permanent = (await pinPhoto(record.photoId)).photo;
+          if (!alive.current || generation !== loadGeneration.current) return;
+          loadedInitial.current = true; setPhotos(list => list.map(p => p.photoId === permanent.photoId ? permanent : p));
+          const item = photoItem(permanent, doc.items.length); history.change({ ...doc, items: [...doc.items, item] }); setSelected(item.id);
         }
       }
     } catch (err) { if (alive.current && generation === loadGeneration.current) { setConnected(false); report(err); } }
@@ -50,6 +54,20 @@ export function MemoryWall({ onBooth, initialPhotoId }: { onBooth: () => void; i
     };
     window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
   }, [history, busy, loading]);
+  useEffect(() => {
+    const timer = setInterval(() => { void getWallPhotos().then(library => { if (alive.current) setPhotos(library.photos); }).catch(report); }, 4 * 60_000);
+    return () => clearInterval(timer);
+  }, []);
+  async function addPhoto(record: PhotoRecord) {
+    if (history.present.items.length >= 60) { setError('Mỗi bảng tối đa 60 đối tượng.'); return; }
+    setBusy(true); setError('');
+    try { const permanent = (await pinPhoto(record.photoId)).photo; setPhotos(list => list.map(p => p.photoId === permanent.photoId ? permanent : p)); add(photoItem(permanent, history.present.items.length)); setMessage('Đã tạo bản sao lâu dài. Lưu bảng để giữ vị trí và trang trí.'); }
+    catch (err) { report(err); } finally { setBusy(false); }
+  }
+  async function removeWall() {
+    if (!window.confirm('Xóa bảng và toàn bộ bản sao ảnh lâu dài? Ảnh còn hạn trong lịch sử không bị xóa.')) return;
+    setBusy(true); try { await deleteWall(); loadedInitial.current = true; await load(); } catch (err) { report(err); } finally { setBusy(false); }
+  }
   function photoItem(photo: PhotoRecord, index: number): WallItem {
     const ratio = photo.width / photo.height, height = 360, width = height * ratio;
     return { id: crypto.randomUUID(), type: 'photo', photoId: photo.photoId, x: 90 + index % 4 * 110, y: 90 + index % 3 * 70, width, height, rotation: index % 2 ? 5 : -5 };
@@ -72,9 +90,10 @@ export function MemoryWall({ onBooth, initialPhotoId }: { onBooth: () => void; i
     if (lock.current) return; lock.current = true; setBusy(true); setError('');
     try {
       const doc = history.present; const response = await saveWall(doc, revision);
+      const refreshed = (await getWallPhotos()).photos; setPhotos(refreshed);
       setRevision(response.revision); setSaved(JSON.stringify(doc));
       if (exporting) {
-        const canvas = await renderWall(doc, photos, 8 / 3); const blob = await pngBlob(canvas);
+        const canvas = await renderWall(doc, refreshed, 8 / 3); const blob = await pngBlob(canvas);
         const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = `PhotoBeo-Goc-ky-niem-${new Date().toISOString().slice(0, 10)}.png`; a.click();
         setTimeout(() => URL.revokeObjectURL(url), 1500); setMessage('Đã lưu bố cục và xuất PNG 3200 × 2400 px.');
       } else setMessage('Đã lưu bố cục riêng tư trên máy chủ.');
@@ -84,7 +103,7 @@ export function MemoryWall({ onBooth, initialPhotoId }: { onBooth: () => void; i
   async function removePhoto(photo: PhotoRecord) {
     if (!window.confirm('Xóa vĩnh viễn ảnh này khỏi thư viện riêng tư? Hãy tải bản sao nếu bạn muốn giữ lại.')) return;
     setBusy(true); setError('');
-    try { await deletePhoto(photo.photoId); setPhotos(current => current.filter(p => p.photoId !== photo.photoId)); setMessage('Đã xóa ảnh khỏi thư viện.'); } catch (err) { report(err); } finally { setBusy(false); }
+    try { await (photo.permanent ? deleteWallPhoto(photo.photoId) : deletePhoto(photo.photoId)); setPhotos((await getWallPhotos()).photos); setMessage('Đã xóa ảnh khỏi thư viện.'); } catch (err) { report(err); } finally { setBusy(false); }
   }
   async function erase() {
     if (!window.confirm('Xóa toàn bộ ảnh, bố cục và phiên riêng tư này trên máy chủ? Thao tác không thể hoàn tác.')) return;
@@ -94,15 +113,15 @@ export function MemoryWall({ onBooth, initialPhotoId }: { onBooth: () => void; i
   function leave() { if (busy) return; if (dirty && !window.confirm('Bố cục chưa lưu. Rời trang và bỏ các thay đổi này?')) return; onBooth(); }
   const disabled = loading || busy || !connected;
   return <div className="memory-page">
-    <header className="site-header"><div className="header-inner"><button className="brand" onClick={leave}><Camera size={27} />PhotoBeo<span className="brand-spark">✧</span></button><nav><button className="nav-link" onClick={leave}>Góc chụp</button><span className="nav-link active"><Heart size={15} />Góc kỷ niệm</span></nav><span className="private-badge"><ShieldCheck size={14} />Chỉ của bạn</span></div></header>
-    <main className="wall-main"><section className="wall-intro"><div><span className="eyebrow">THE LITTLE THINGS, KEPT FOREVER</span><h1>Góc kỷ niệm <em>PhotoBeo</em><span>♡</span></h1><p>Dán một bức ảnh, viết một lời thương. Giữ lại những ngày thật xinh.</p></div><button className="soft-button" onClick={leave}><ArrowLeft size={15} />Chụp thêm kỷ niệm</button></section>
-      <div className="wall-toolbar"><div><button className="icon-button" disabled={disabled || !history.past.length} onClick={history.undo} aria-label="Hoàn tác"><Undo2 size={17} /></button><button className="icon-button" disabled={disabled || !history.future.length} onClick={history.redo} aria-label="Làm lại"><Redo2 size={17} /></button><span className="toolbar-divider" /><button className="soft-button" disabled={disabled} onClick={() => addDecoration('note')}><StickyNote size={15} />Ghi chú</button><button className="soft-button" disabled={disabled} onClick={() => addDecoration('tape')}><Plus size={15} />Băng dính</button></div><div><span className={`save-state ${dirty ? 'unsaved' : ''}`}>{dirty ? 'Chưa lưu' : 'Đã đồng bộ'}</span><button className="soft-button" disabled={disabled} onClick={() => void persist()}>{busy ? <LoaderCircle size={15} className="spin" /> : <Save size={15} />}Lưu bảng</button><button className="primary" disabled={disabled} onClick={() => void persist(true)}><ArrowDownToLine size={15} />Xuất PNG</button></div></div>
+    <header className="site-header"><div className="header-inner"><button className="brand" onClick={leave}><Camera size={27} />PhotoBeo<span className="brand-spark">✧</span></button><nav><button className="nav-link" onClick={leave}>Góc chụp</button><button className="nav-link" disabled={busy} onClick={() => { if (!dirty || window.confirm('Bảng chưa lưu. Rời trang?')) navigate('/history'); }}>Lịch sử ảnh</button><span className="nav-link active"><Heart size={15} />Góc kỷ niệm</span></nav><span className="private-badge"><ShieldCheck size={14} />Chỉ của bạn</span></div></header>
+    <main className="wall-main"><section className="wall-intro"><div><span className="eyebrow">NHỮNG ĐIỀU NHỎ BÉ, GIỮ LẠI THẬT LÂU</span><h1>Góc kỷ niệm <em>PhotoBeo</em><span>♡</span></h1><p>Dán một bức ảnh, viết một lời thương. Giữ lại những ngày thật xinh.</p></div><button className="soft-button" onClick={leave}><ArrowLeft size={15} />Chụp thêm kỷ niệm</button></section>
+      <div className="wall-toolbar"><div><button className="icon-button" disabled={disabled || !history.past.length} onClick={history.undo} aria-label="Hoàn tác"><Undo2 size={17} /></button><button className="icon-button" disabled={disabled || !history.future.length} onClick={history.redo} aria-label="Làm lại"><Redo2 size={17} /></button><span className="toolbar-divider" /><button className="soft-button" disabled={disabled} onClick={() => addDecoration('note')}><StickyNote size={15} />Ghi chú</button><button className="soft-button" disabled={disabled} onClick={() => addDecoration('tape')}><Plus size={15} />Băng dính</button></div><div><span className={`save-state ${dirty ? 'unsaved' : ''}`}>{loading ? 'Đang tải…' : !connected ? 'Mất kết nối' : dirty ? 'Chưa lưu' : 'Đã đồng bộ'}</span><button className="soft-button" disabled={disabled} onClick={() => void persist()}>{busy ? <LoaderCircle size={15} className="spin" /> : <Save size={15} />}Lưu bảng</button><button className="primary" disabled={disabled} onClick={() => void persist(true)}><ArrowDownToLine size={15} />Xuất PNG</button></div></div>
       {error && <div className="message error-message" role="alert"><span>{error}</span><button className="text-button" disabled={busy} onClick={() => { if (!dirty || window.confirm('Tải bản đã lưu sẽ bỏ các thay đổi chưa lưu. Tiếp tục?')) void load(); }}>Tải lại bảng</button></div>}
       {message && <p className="wall-status" role="status">{message}</p>}
-      <div className="wall-workspace"><PhotoLibrary photos={photos} disabled={disabled} onAdd={p => add(photoItem(p, history.present.items.length))} onDelete={p => void removePhoto(p)} onBooth={leave} />
+      <div className="wall-workspace"><PhotoLibrary photos={photos} disabled={disabled} onAdd={p => void addPhoto(p)} onDelete={p => void removePhoto(p)} onBooth={leave} />
         <section className="wall-board-section" aria-label="Bảng kỷ niệm"><div className="board-label"><span>TRANG GIẤY CỦA BẠN</span><span>1200 × 900 · Xuất HD</span></div><WallCanvas doc={history.present} records={photos} selected={selected} disabled={disabled} zoom={zoom} onSelect={setSelected} onChange={history.change} onBegin={history.begin} onPreview={history.preview} onCommit={history.commit} onCancel={history.cancel} onError={setError} /><div className="board-bottom"><span>Kéo ảnh để sắp xếp · Không nhận tệp kéo từ máy</span><label>Zoom <input type="range" min="75" max="180" value={zoom} onChange={e => setZoom(+e.target.value)} />{zoom}%</label></div>{loading && <p className="message"><LoaderCircle className="spin" size={17} />Đang kết nối thư viện riêng tư…</p>}</section>
         <div className="wall-right"><section className="sticker-palette panel"><h3>Một chút đáng yêu</h3><p>Những điểm nhấn nho nhỏ.</p><div>{stickers.map(s => <button key={s.id} disabled={disabled} title={s.label} aria-label={`Thêm sticker ${s.label}`} style={{ color: s.color }} onClick={() => addDecoration('sticker', s.id)}>{s.glyph}</button>)}</div><label>Màu trang giấy<input aria-label="Màu trang giấy" type="color" disabled={disabled} value={history.present.background} onChange={e => history.change({ ...history.present, background: e.target.value })} /></label></section><WallInspector item={chosen} disabled={disabled} onChange={update} onLayer={layer} onDelete={() => { history.change({ ...history.present, items: history.present.items.filter(i => i.id !== selected) }); setSelected(null); }} /></div>
-      </div><div className="wall-footer"><p><ShieldCheck size={14} />Ảnh và bảng riêng tư gắn với cookie trình duyệt trong 30 ngày. Hãy xuất PNG để giữ lâu dài.</p><button disabled={disabled} className="text-button danger" onClick={() => void erase()}>Xóa dữ liệu riêng tư của tôi</button></div>
+      </div><div className="wall-footer"><p><ShieldCheck size={14} />Ảnh trên Wall được lưu lâu dài, độc lập với lịch sử 30 ngày. Tạo mã khôi phục trong Lịch sử để giữ quyền truy cập.</p><button disabled={disabled} className="text-button danger" onClick={() => void removeWall()}>Xóa bảng và ảnh Wall</button><button disabled={disabled} className="text-button danger" onClick={() => void erase()}>Xóa dữ liệu riêng tư của tôi</button></div>
     </main>
   </div>;
 }

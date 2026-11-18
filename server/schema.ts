@@ -16,6 +16,7 @@ export const registrationSchema = z.object({
   options: z.object({
     frame: z.string().refine(id => frames.some(f => f.id === id)),
     color: z.string().regex(/^#[a-fA-F0-9]{6}$/), caption: z.string().max(50), showDate: z.boolean(),
+    date: z.iso.datetime().optional(), sticker: z.enum(['none', 'heart', 'star', 'flower']).optional(),
   }).strict(),
   photos: z.array(z.object({ originalSrc: z.string().max(5_600_000), edit: editSchema }).strict()).min(1).max(6),
 }).strict().refine(value => layouts.find(l => l.id === value.layoutId)?.count === value.photos.length, { message: 'Số ảnh không khớp bố cục.' });

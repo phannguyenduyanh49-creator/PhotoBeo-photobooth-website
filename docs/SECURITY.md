@@ -1,43 +1,37 @@
-# Mô hình dữ liệu và xác thực ảnh
+# Bảo mật và vòng đời dữ liệu 3.0
 
-## Luồng được chấp nhận
+## Quyền sở hữu
 
-Photobooth hoạt động local trước. Người dùng chọn “Thêm vào Creative Wall”, đọc thông báo và tích đồng ý. Trình duyệt mới gửi các ảnh gốc đã chuẩn hóa 1600×1200 cùng layout, frame và công thức màu tới `/api/booth/camera/complete` hoặc `/api/booth/upload/complete`.
+Tài khoản khách users bền vững; phiên sessions có cookie token random 256-bit, chỉ hash token lưu DB. Cookie HttpOnly, SameSite=Strict, Secure + __Host- trên HTTPS. Session 30 ngày không kéo theo xóa tài khoản/Wall.
 
-Server không nhận một PNG thành phẩm tùy ý để đóng dấu. Server kiểm tra schema, số ảnh của bố cục, công thức, MIME **và byte ảnh thực**, độ phân giải, dung lượng; decode bằng Sharp, bỏ EXIF và render thành phẩm bằng pipeline pixel/hình học dùng chung. Chỉ sau render thành công, server ghi giao dịch nguyên tử:
+Tạo mã khôi phục do người dùng chủ động thực hiện trong Lịch sử. Mã 256-bit là quyền truy cập tài khoản, chỉ hash lưu DB, không lưu browser localStorage. Tạo mã mới vô hiệu mã cũ; phiên đăng nhập đã cấp vẫn tồn tại tới hết hạn hoặc xóa tài khoản. Người có mã có thể đọc và xóa thư viện. Không phải tài khoản email/password hoặc OAuth, không có trung tâm hỗ trợ khôi phục khi mất cả cookie lẫn mã.
 
-- `photoId`, `assetId`: UUID do server sinh.
-- `createdAt`: thời gian server.
-- `ownerSessionId`: lấy từ cookie phiên đã xác thực, không từ body.
-- `origin`: loại endpoint của quy trình đăng ký camera/upload.
-- `verificationStatus`: server gán `verified` sau kiểm tra và render.
-- `photoBeoVersion`: `2.0.0`.
-- Kích thước, dung lượng và PNG BLOB riêng tư.
+Mỗi mutation cần Origin allowlist và CSRF token timing-safe. Restore yêu cầu một phiên trình duyệt mới có CSRF hợp lệ và mã bí mật của tài khoản đích; không nhận userId để đổi chủ sở hữu.
 
-Schema strict từ chối trường `photoId`, `ownerSessionId`, `origin` hoặc `verificationStatus` tự gửi thêm. `requestId` chỉ là khóa chống tạo bản sao khi retry, không phải bằng chứng xác thực; khóa được ghép với owner trên server.
+## Ảnh và Wall
 
-Ảnh nguồn chỉ xử lý trong bộ nhớ của request, không lưu database hoặc ghi log. Thư viện lưu PNG đã ghép; muốn sửa lại ảnh nguồn cần quay về phiên photobooth chưa đóng. Preset màu được lưu localStorage vì chỉ là tham số người dùng, không dùng để xác thực ảnh.
+Không tự upload khi chụp/chỉnh/download. POST booth chỉ nhận consent=true, requestId, layout/options, ảnh gốc và công thức màu. Strict schema từ chối owner/verified/photoId/origin tự gán. Server đọc nội dung thực, kiểm MIME/dimensions/kích thước, decode/reencode bỏ EXIF, render PNG; ảnh gốc chỉ xử lý trong RAM.
 
-## Ý nghĩa chính xác của “đã xác thực”
+Verified xác nhận record đã qua server PhotoBeo, không chứng minh webcam vật lý hay quyền tác giả. Endpoint camera/upload mô tả luồng đăng ký.
 
-Xác thực nghĩa là **thành phẩm đã được server PhotoBeo kiểm tra/render/đăng ký và thuộc phiên đang truy cập**. Nó không chứng minh tác giả, quyền tác giả, danh tính người chụp hoặc ảnh thực sự đến từ webcam vật lý. Trong web thông thường, client có thể tạo một bitmap và gọi endpoint camera; không có chứng thực phần cứng cho pixel webcam. `origin` chỉ mô tả luồng đăng ký, không được dùng để nâng quyền hay bỏ qua kiểm tra.
+Mọi read/write/delete ảnh/Wall lọc userId từ session server. Wall chỉ nhận photoId của history chưa hết hạn hoặc permanent asset đã thuộc chủ sở hữu. URL tùy ý, photoId giả/ngoại tài khoản và tỷ lệ ảnh sai bị chặn. Bản sao permanent có assetId/storageKey riêng, metadata expiresAt=null. Không có FK từ permanent về history nên xóa history không thể xóa bản sao.
 
-Ảnh bất kỳ muốn dùng trên bảng phải đi qua quy trình photobooth được phép (nguồn upload cũng được chấp nhận), được ghép và đăng ký. Không có endpoint upload ảnh trực tiếp vào Creative Wall. Watermark là nhận diện thương hiệu, không phải cơ chế bảo mật.
+Vị trí, kích thước, rotation, thứ tự lớp, ghi chú và sticker được lưu trong memory_walls + wall_items trong một transaction. Revision phát hiện sửa đồng thời từ tab khác. Gỡ ảnh khỏi canvas không tự xóa bản sao khỏi thư viện Wall; xóa bản sao cần gỡ và Save trước. Xóa cả bảng có thao tác riêng.
 
-## Quyền riêng tư và API
+## Truy cập tệp
 
-- Token phiên ngẫu nhiên 256 bit; database chỉ lưu SHA-256 của token. Cookie HttpOnly/SameSite=Strict, Secure và prefix `__Host-` trong production.
-- GET ảnh và thư viện luôn tra cứu `ownerSessionId` từ phiên. Không có URL asset công khai hoặc thư mục ảnh static.
-- PUT wall kiểm tra mọi photoId là record verified của owner; từ chối ID giả, ID phiên khác, URL tùy ý, sai tỷ lệ ảnh, tọa độ/giá trị sai, trùng item ID hoặc quá 60 item.
-- Thứ tự item là thứ tự layer. Lưu revision để ngăn tab cũ ghi đè tab mới; lỗi 409 yêu cầu tải lại bản đã lưu.
-- Mọi thao tác ghi yêu cầu Origin nằm trong allowlist **và** CSRF token phiên. Không cấu hình CORS wildcard.
-- Responses `/api` dùng `Cache-Control: no-store, private`, `nosniff`, CORP same-origin. Không cache dữ liệu riêng tư ở CDN.
-- Giới hạn body 24 MB cho đăng ký ảnh, 64 KB cho bố cục; mỗi ảnh nguồn tối đa 4 MB/12 MP tại API. Client chuẩn hóa từ file JPEG/PNG/WebP ≤15 MB/60 MP. Không nhận ảnh động hoặc SVG.
-- Hạn chế render đồng thời, quota theo phiên và rate limit IP. Quota ảnh theo giờ còn được truy vấn từ database.
-- Ghi chú là text vẽ lên Canvas, không đưa vào innerHTML. File remote URL không được server tải về, tránh SSRF qua nguồn ảnh.
+Objects private ngoài public/dist hoặc trong private S3 bucket. Client dùng URL ứng dụng có chữ ký HMAC, hết hạn 5 phút; endpoint kiểm chữ ký, owner cookie, trạng thái ready và expiry lịch sử. Không có URL tệp công khai. Cache-Control no-store/private, nosniff và CORP same-origin. Lịch sử/Wall làm mới link định kỳ; tải lại trang khi link cũ hết hạn.
 
-## Phạm vi kiểm tra
+Các biến AWS/S3 chỉ ở server. Bucket không cấp public ACL. Không ghi token, recovery key, signed URL hoặc raw image vào application logs.
 
-Test server dùng hai phiên độc lập: đăng ký và lấy PNG, thử lấy ảnh phiên khác, fake ID, forged metadata, CSRF, Origin sai, file giả, revision conflict, khởi động lại database, retry idempotent và xóa record/asset/phiên. E2E kiểm tra không có request đăng ký trước khi đồng ý và luồng lưu/đọc/xuất bảng qua API thật.
+## Cleanup an toàn
 
-Giới hạn còn lại: chưa có tài khoản/recovery, chưa có moderation/public sharing, rate limit trong bộ nhớ không phân tán, cần hạ tầng production/HTTPS/volume và chính sách backup của đơn vị vận hành. Không coi kiểm thử ứng dụng là một cuộc pentest toàn bộ hạ tầng.
+History createdAt/expiresAt do server tạo: đúng 30×24 giờ. Lookup chặn hết hạn tại timestamp, không phụ thuộc job. Xóa metadata và ghi outbox atomic, storage delete retry/idempotent; lỗi storage không làm ảnh hết hạn hiện trở lại. Photo session metadata không còn history được xóa. Phiên hết hạn bị xóa riêng, không cascade users/Wall.
+
+Pending object upload được journal trước I/O để có thể thu gom sau crash. Migration giữ BLOB staging đến khi objects đã ghi thành công. Metadata và storage không có transaction phân tán; outbox/staging xử lý các cửa sổ lỗi này. Backup/noncurrent S3 versions theo chính sách vận hành riêng, không thể hứa xóa mọi bản backup ngay.
+
+## Giới hạn
+
+180 request/phút/IP, 30 phiên mới/giờ/IP, 20 registration/giờ/IP và tài khoản; restore 10/giờ/IP. Mỗi nguồn backend tối đa 4 MiB, 12 MP, không ảnh động; payload 24 MiB. Client nhận file 15 MiB/60 MP rồi chuẩn hóa 1600×1200 trước khi đăng ký. Hai render đồng thời, 60 wall items, 200 assets/500 MiB mỗi tài khoản, 2 GiB toàn instance.
+
+Một instance Express/SQLite; chưa có OAuth, PostgreSQL, queue phân tán hoặc kiểm chứng S3/cloud production. Không dùng mã khôi phục như cơ chế phân quyền chia sẻ công khai.

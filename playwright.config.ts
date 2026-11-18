@@ -1,7 +1,8 @@
 import { defineConfig } from '@playwright/test';
+const runId = process.env.PHOTO_BEO_TEST_RUN ||= Date.now().toString();
 
 export default defineConfig({
-  testDir: './tests', fullyParallel: false, workers: 1, timeout: 90_000,
+  testDir: './tests', outputDir: '.test-data/browser-' + runId, fullyParallel: false, workers: 1, timeout: 90_000,
   use: {
     baseURL: 'http://localhost:5173', viewport: { width: 1440, height: 1080 },
     browserName: 'chromium', channel: process.env.PLAYWRIGHT_CHANNEL || 'chrome',

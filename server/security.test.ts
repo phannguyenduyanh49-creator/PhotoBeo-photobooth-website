@@ -25,11 +25,11 @@ async function start() {
   await new Promise<void>(resolve => server.once('listening', resolve));
   base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
 }
-async function close() { server.closeIdleConnections(); await new Promise<void>(resolve => server.close(() => resolve())); service.close(); }
+async function close() { server.closeIdleConnections(); await new Promise<void>(resolve => server.close(() => resolve())); await service.close(); }
 async function client(): Promise<Client> {
   const response = await fetch(base + '/api/session'); const session = await response.json();
   expect(response.headers.get('set-cookie')).toContain('HttpOnly'); expect(response.headers.get('set-cookie')).toContain('SameSite=Strict');
-  return { cookie: response.headers.get('set-cookie')!.split(';')[0], csrf: session.csrfToken, id: session.sessionId };
+  return { cookie: response.headers.get('set-cookie')!.split(';')[0], csrf: session.csrfToken, id: session.userId };
 }
 const request = (c: Client, path: string, method = 'GET', body?: unknown, extraHeaders?: Record<string, string>) => fetch(base + path, {
   method, headers: { Cookie: c.cookie, Origin: 'http://localhost:5173', 'X-CSRF-Token': c.csrf, ...(body ? { 'Content-Type': 'application/json' } : {}), ...extraHeaders }, body: body ? JSON.stringify(body) : undefined,
@@ -45,7 +45,7 @@ afterAll(async () => { await close(); rmSync(directory, { recursive: true, force
 
 describe('Xác thực và quyền sở hữu ở server', () => {
   it('server tạo record xác thực, PNG thật, không công khai asset', async () => {
-    expect(photo).toMatchObject({ ownerSessionId: owner.id, origin: 'upload', verificationStatus: 'verified', photoBeoVersion: '2.0.0' });
+    expect(photo).toMatchObject({ ownerSessionId: owner.id, origin: 'upload', verificationStatus: 'verified', photoBeoVersion: '3.0.0' });
     expect(photo.photoId).not.toBe(photo.assetId);
     const response = await request(owner, photo.url); expect(response.status).toBe(200);
     const bytes = new Uint8Array(await response.arrayBuffer()); expect([...bytes.slice(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
@@ -92,7 +92,9 @@ describe('Xác thực và quyền sở hữu ở server', () => {
     await close(); await start();
     const saved = await (await request(owner, '/api/wall')).json(); expect(saved.items).toEqual(body.items); expect(saved.revision).toBe(1);
     expect((await (await request(stranger, '/api/wall')).json()).items).toEqual([]);
-    expect((await request(owner, '/api/photos/' + photo.photoId, 'DELETE')).status).toBe(409);
+    expect((await request(owner, '/api/photos/' + photo.photoId, 'DELETE')).status).toBe(204);
+    const permanent = (await (await request(owner, '/api/wall/photos')).json()).photos.find((p: PhotoRecord) => p.photoId === photo.photoId);
+    expect(permanent.permanent).toBe(true); expect((await request(owner, permanent.url)).status).toBe(200);
     expect((await request(stranger, '/api/photos/' + photo.photoId, 'DELETE')).status).toBe(404);
   });
   it('chống tạo bản sao khi retry và xóa thật cả record/asset/phiên', async () => {

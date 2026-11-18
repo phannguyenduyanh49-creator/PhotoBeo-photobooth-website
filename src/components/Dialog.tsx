@@ -9,7 +9,7 @@ export function Dialog({ title, onClose, children, className = '' }: { title: st
     el.showModal();
     return () => { el.close(); previous?.focus(); };
   }, []);
-  return <dialog ref={ref} className={`dialog ${className}`} aria-label={title} onCancel={onClose} onClick={e => { if (e.target === ref.current) onClose(); }}>
+  return <dialog ref={ref} className={`dialog ${className}`} aria-label={title} onCancel={e => { e.preventDefault(); onClose(); }} onClick={e => { if (e.target === ref.current) onClose(); }}>
     <div className="dialog-header"><h2>{title}</h2><button className="icon-button" onClick={onClose} aria-label="Đóng"><X size={20} /></button></div>
     {children}
   </dialog>;

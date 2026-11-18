@@ -1,12 +1,10 @@
-﻿# PhotoBeo 2.0
+# PhotoBeo 3.0
 
-Photobooth tiếng Việt phong cách pastel với camera thật, chỉnh màu không phá hủy ảnh gốc và **Góc kỷ niệm** riêng tư tại `/memory-wall`.
+Photobooth pastel pink với luồng **Chụp ảnh → Chọn mẫu → Chỉnh sửa → Thành phẩm**, lịch sử riêng tư 30 ngày và Memory Wall lưu lâu dài.
 
-React 19 + TypeScript + Vite + Tailwind + Lucide được giữ lại. Backend mới dùng Node 24, Express, SQLite, Sharp và Canvas để kiểm tra ảnh, tự ghép thành phẩm và xác thực quyền sử dụng.
+## Chạy cục bộ
 
-## Chạy local
-
-Cài **Node.js 24+**, rồi chạy tại thư mục dự án:
+Yêu cầu Node.js 24+ và npm.
 
 ```powershell
 cd D:\Prj\photobeo
@@ -14,112 +12,58 @@ npm.cmd ci
 npm.cmd run dev
 ```
 
-- Frontend: http://localhost:5173
-- Góc kỷ niệm: http://localhost:5173/memory-wall
-- Backend: http://127.0.0.1:3001 (frontend dùng proxy `/api`)
-- Dữ liệu thật local: `.data/photobeo.sqlite`. Không xóa nếu muốn giữ thư viện.
-- Không bắt buộc có `.env` để chạy local. Dùng `.env.example` nếu cần đổi cấu hình.
-- Trên macOS/Linux dùng `npm`; trên PowerShell dùng `npm.cmd` nếu chính sách chặn `npm.ps1`.
-
-Camera cần HTTPS hoặc localhost. Camera trên điện thoại truy cập địa chỉ IP LAN qua HTTP có thể bị chặn; vẫn có thể tải ảnh từ thiết bị.
-
-## Photobooth và chỉnh màu
-
-- 5 bố cục: dải 1×3, dải 1×4, lưới 2×2, lưới 2×3, Polaroid.
-- 5 kiểu khung, màu tùy chọn, lời nhắn 50 ký tự, bật/tắt ngày.
-- Bật/tắt camera, chọn thiết bị, trước/sau, lật gương đồng nhất với ảnh chụp.
-- Chụp từng ảnh/tự động, đếm ngược 0/3/5/10 hoặc 1–15 giây; hủy, chụp lại từng ô/cả bộ.
-- JPEG, PNG, WebP tối đa 15 MB/60 MP ở client, chuẩn hóa 1600×1200, crop cover không kéo méo.
-- **24 preset** thuộc Cơ bản, Pastel, Film, Sáng tạo, thumbnail từ cùng ảnh thật. Khi có ảnh/camera, dùng preview phù hợp.
-- 10 điều chỉnh: độ sáng, tương phản, độ bão hòa, độ ấm, tint, vùng sáng, vùng tối, hạt phim, tối góc, cường độ bộ lọc.
-- Chọn ảnh đã chụp/tải lên để chỉnh lại. Có Trước/Sau, khôi phục Original, áp dụng cả bộ và lưu preset cá nhân trên trình duyệt.
-- `originalSrc` và `EditRecipe` được giữ riêng. Mọi lần chỉnh đều render lại từ gốc; không chồng bộ lọc vào JPEG đã chỉnh.
-- Preview camera, thumbnail, PNG và backend dùng chung pipeline pixel. Preview kích thước nhỏ được lấy mẫu để tiết kiệm CPU; preview thành phẩm và file tải dùng cùng PNG.
-- Flash/âm thanh shutter tùy chọn, ảnh vào danh sách, hiệu ứng lên màu và trái tim hoàn thành; có nút tắt hiệu ứng và hỗ trợ reduced motion.
-- Thành phẩm lớn hơn, click xem lớn, zoom, toàn màn hình, tải HD, chia sẻ bằng Web Share nếu trình duyệt hỗ trợ.
-- PNG có cạnh dài 2400 px; tên `PhotoBeo-YYYYMMDD-HHmmss.png`.
-
-Đổi bố cục giữ ảnh dư trong phiên, xuất lại theo bố cục đang chọn. Phiên chụp và ảnh gốc vẫn ở bộ nhớ trình duyệt: reload/đóng trang sẽ mất phiên chưa lưu. Preset cá nhân chỉ chứa thông số màu, không chứa ảnh và không có giá trị xác thực.
-
-## Góc kỷ niệm
-
-1. Hoàn thành một bộ ảnh trong photobooth.
-2. Chọn **Thêm vào Creative Wall**.
-3. Đọc thông báo và tích đồng ý gửi ảnh/thiết lập để server xử lý và lưu thành phẩm riêng tư.
-4. Server kiểm tra nguồn ảnh, tự render PNG, tạo record verified thuộc phiên hiện tại.
-5. Mở **Góc kỷ niệm**, dán ảnh từ thư viện, kéo vị trí, xoay, đổi kích thước giữ tỷ lệ và xếp lớp.
-6. Thêm sticker, ghi chú, băng dính; Undo/Redo (Ctrl/Cmd+Z, Shift+Z hoặc Ctrl/Cmd+Y).
-7. **Lưu bảng** để lưu bố cục. **Xuất PNG** xác thực/lưu bố cục trước, rồi xuất trang giấy 3200×2400 px.
-
-Chọn đối tượng rồi dùng các tay nắm hoặc bảng chỉnh bên phải. Có thể dùng phím mũi tên để di chuyển, giữ Shift để bước lớn hơn. Trên màn hình nhỏ, trang giấy có vùng cuộn riêng và zoom.
-
-Mỗi phiên có một bảng riêng tư; không có bảng công khai hoặc URL chia sẻ ảnh công khai. Không nhận ảnh kéo trực tiếp từ máy vào wall. Ảnh upload phải đi qua photobooth và đăng ký thành phẩm.
-
-Lưu revision ngăn tab cũ ghi đè bản mới. Nếu có xung đột, tải bản đã lưu và sửa tiếp. Xóa một đối tượng chỉ gỡ khỏi trang giấy; xóa ảnh trong thư viện hoặc xóa cả phiên là thao tác riêng có xác nhận.
-
-## Lưu trữ, quyền riêng tư và xác thực
-
-SQLite chứa phiên, record ảnh, PNG BLOB và bố cục. Ảnh gốc chỉ xử lý tạm trong bộ nhớ của request; không lưu trên server. Browser không tự gửi ảnh nếu chưa tích đồng ý lưu.
-
-Record gồm `photoId`, `createdAt`, `origin`, `assetId`, `ownerSessionId`, `verificationStatus`, `photoBeoVersion`; ID, owner, trạng thái verified, ngày và version đều do server tạo. API không tin metadata xác thực client tự gửi.
-
-Token phiên 256 bit nằm trong cookie HttpOnly, SameSite=Strict; production dùng Secure và prefix `__Host-`. Server kiểm tra quyền trên mỗi lần đọc ảnh hoặc lưu bảng, kiểm tra Origin và CSRF token cho thao tác ghi. Có giới hạn file/body/pixel, rate limit, quota, kiểm tra byte ảnh và loại bỏ metadata.
-
-**“Đã xác thực” nghĩa là thành phẩm được server PhotoBeo kiểm tra/render/đăng ký và thuộc phiên hiện tại.** Nó không chứng thực tác giả hay nguồn webcam vật lý. Origin mô tả luồng đăng ký camera/upload, không phải bằng chứng phần cứng. Watermark không có giá trị xác thực.
-
-Phiên ẩn danh có thời hạn **30 ngày**. Mất cookie/hết hạn sẽ không khôi phục quyền truy cập ở bản này; hãy tải PNG để giữ lâu dài. Dữ liệu hết hạn được dọn khi khởi động và mỗi giờ. Có thể xóa ảnh hoặc toàn bộ dữ liệu phiên trong giao diện.
-
-Chi tiết: [Mô hình bảo mật](docs/SECURITY.md).
-
-## Kiểm tra
+Mở http://localhost:5173. Backend Express chạy ở 127.0.0.1:3001, Vite proxy /api. Có thể sao chép .env.example thành .env; mặc định không cần dịch vụ cloud.
 
 ```powershell
-npm.cmd run typecheck
 npm.cmd test
-npm.cmd run build
 npm.cmd run test:e2e
+npm.cmd run build
+npm.cmd start
 ```
 
-- Unit/integration: hình học/crop, countdown cancellation, tệp ảnh, 24 preset, chỉnh màu từ gốc, giới hạn wall; backend thật với SQLite và hai phiên độc lập.
-- Security: ID giả/khác owner, forged metadata, CSRF/Origin, MIME giả/tệp hỏng, revision conflict, persistence sau restart, retry idempotent, xóa record/asset.
-- E2E: Chrome với camera giả, 5 bố cục, đổi filter, upload, xuất/tải PNG, mobile/tablet, đồng ý lưu, kéo/xoay/resize/layer/undo/redo, save/reload/export wall, từ chối file trực tiếp và backend lỗi.
-- E2E dùng data directory riêng dưới `.test-data`, không ghi vào thư viện local thường dùng.
-- Ảnh QA/PNG thử: `artifacts/`; trace lỗi: `test-results/`.
-- Chrome cần được cài sẵn. Có thể đặt `PLAYWRIGHT_CHANNEL=msedge` để dùng Edge.
+Sau build, npm start phục vụ cả frontend và API tại http://localhost:3001. npm run preview chỉ phục vụ frontend.
 
-Cần kiểm tra thêm webcam thật, camera trước/sau trên điện thoại, Safari iOS và bảng chia sẻ hệ điều hành. Các bài tự động không thay thế kiểm thử phần cứng thật.
+## Luồng sử dụng
 
-## Deploy
+1. **Chụp:** camera lớn, tải JPEG/PNG/WebP, countdown 0/3/5/10 giây hoặc tùy chỉnh, chụp liên tiếp, chuyển camera, lật gương, âm thanh, hiệu ứng; chụp lại/thay/xóa từng ảnh. Tối đa 6 ảnh.
+2. **Chọn mẫu:** 1×3, 1×4, 2×2, 2×3, Polaroid; khung, họa tiết, màu, sticker, lời nhắn và ngày chụp. Thiếu ảnh có nút quay lại bổ sung; đổi mẫu không mất ảnh dự phòng.
+3. **Chỉnh sửa:** 24 màu có thumbnail thật, 9 thanh chỉnh, Before/After, Original, preset cá nhân, áp dụng cả bộ. Ảnh gốc không bị ghi đè.
+4. **Thành phẩm:** xem lớn, zoom/fullscreen, chia sẻ qua trình duyệt hỗ trợ, PNG HD cạnh dài 2400 px, đồng ý lưu lịch sử, thêm vào Wall hoặc chụp bộ mới.
 
-Frontend vẫn deploy Vercel được. Backend cần Node 24 với **persistent disk**, HTTPS và cấu hình origin; không đặt SQLite trong filesystem tạm của Vercel Functions.
+Mỗi bước có progress và Back/Continue. Back giữ ảnh trong RAM; refresh trang chụp không giữ bản đang chỉnh chưa lưu. Preview khung và download dùng cùng renderer, cùng độ phân giải xử lý; thành phẩm sau lưu hiển thị chính PNG canonical trên máy chủ.
 
-Bàn giao có `vercel.json` cho route SPA, script cấu hình API proxy và Dockerfile tùy chọn. Chưa có URL backend production nên chưa cấu hình proxy/deploy thật.
+## Hai nơi lưu, hai vòng đời
 
-Xem [hướng dẫn local và deploy](docs/DEPLOYMENT.md). Không có secret hardcode trong frontend.
+| | Lịch sử /history | Memory Wall /memory-wall |
+|---|---|---|
+| Lúc lưu | Người dùng đồng ý gửi ảnh | Chủ động thêm ảnh đã xác thực |
+| Thời hạn | createdAt + 30 × 24 giờ | Không có expiresAt |
+| Tệp | temporary/<assetId>.png | permanent/<assetId>.png, bản sao độc lập |
+| Xóa lịch sử | Xóa bản lịch sử | Bản sao Wall vẫn còn |
+| Quyền riêng tư | Chỉ chủ sở hữu | Chỉ chủ sở hữu, không tự công khai |
 
-## Cấu trúc chính
+Lịch sử có ngày hết hạn, tải HD và xóa trước hạn. Wall giữ ảnh, vị trí, kích thước, góc xoay, lớp, sticker/ghi chú/băng dính; Save, Load, Undo/Redo, Delete, Export PNG 3200×2400.
 
-```text
-src/
-  App.tsx                       Điều phối photobooth và route
-  components/editor/            Bộ lọc, thumbnail ảnh thật, camera preview pixel
-  components/ResultViewer.tsx   Zoom, full screen, HD, share, đồng ý lưu
-  components/wall/              Canvas, thư viện và bảng chỉnh đối tượng
-  pages/MemoryWall.tsx           Luồng scrapbook riêng tư
-  hooks/                        Camera, countdown, shutter, route, history
-  lib/filters.ts                24 preset và pipeline pixel chung
-  lib/frameRenderer.ts          Hình học/khung dùng ở browser và server
-  lib/wall.ts                   Đối tượng và renderer wall chung
-  lib/api.ts                    Cookie session, CSRF và API client
-server/
-  app.ts                        Sessions, ownership, quota, SQLite, routes
-  schema.ts                     Validation strict
-  render.ts                     Decode/re-encode và render PNG canonical
-  security.test.ts              Kiểm tra server với hai phiên độc lập
-scripts/
-  dev.mjs                       Chạy frontend + backend
-  configure-vercel.mjs           Sinh reverse proxy từ backend URL thật
-```
+**Không tự gửi ảnh khi chụp/chỉnh.** Ảnh chỉ tới backend sau checkbox đồng ý và nút lưu. Backend kiểm tra ảnh nguồn, render PNG và cấp photoId. Khi dán lên Wall, backend kiểm tra quyền sở hữu và tạo object permanent riêng.
 
-Audit ban đầu: [UPGRADE-AUDIT.md](docs/UPGRADE-AUDIT.md). Ảnh mẫu bộ lọc: Amelia Cui / Unsplash, nguồn và giấy phép tại [ASSET-CREDITS.md](public/ASSET-CREDITS.md). Font được đóng gói local.
+## Kiến trúc
 
+- React 19, TypeScript, Vite, Canvas; Express 5 hiện có.
+- SQLite metadata trên persistent disk, schema v3 và migration v2 tự động. Một instance ứng dụng.
+- Object storage private: filesystem cục bộ hoặc S3-compatible qua AWS SDK; ảnh mới không lưu trong BLOB của database.
+- Cookie HttpOnly/SameSite/HTTPS, CSRF + Origin, ownership trên mọi API. Signed image URLs 5 phút vẫn yêu cầu cookie của đúng chủ sở hữu.
+- Tài khoản khách bền vững tách khỏi phiên đăng nhập 30 ngày. Trong Lịch sử, chủ động tạo/tải **mã khôi phục** để mở lại tài khoản sau khi mất/hết cookie. Đây là bearer secret, không phải đăng nhập email/Google; mã không được lưu localStorage. Chỉ hash mã lưu trong database.
+- LocalStorage chỉ chứa công thức preset màu; ảnh chưa lưu nằm trong RAM.
+- Cleanup mỗi phút và lúc khởi động; npm run cleanup cho scheduler/kiểm tra thủ công. Outbox lưu công việc xóa Storage để retry sau lỗi/restart. Hết hạn bị chặn truy cập đúng timestamp, việc xóa vật lý có thể trễ một chu kỳ hoặc trong lúc Storage lỗi.
+- Hạn mức: 20 thành phẩm/giờ, 200 assets và 500 MiB/tài khoản (cả hai kho), 2 GiB toàn instance; tối đa 2 tác vụ render đồng thời.
+
+Origin camera/upload chỉ mô tả luồng đăng ký; trình duyệt không chứng minh được ảnh đến từ webcam vật lý. Verified nghĩa là server đã xử lý và xác thực record/quyền sở hữu.
+
+## Triển khai và kiểm thử
+
+- [Audit trước khi sửa](docs/UPGRADE-3-AUDIT.md)
+- [Migration, biến môi trường, scheduler, backup/recovery và triển khai](docs/DEPLOYMENT.md)
+- [Mô hình bảo mật và vòng đời dữ liệu](docs/SECURITY.md)
+- [Phạm vi kiểm thử và giới hạn](docs/VALIDATION-3.md)
+
+Có adapter S3 nhưng chưa có credentials để xác minh bucket/cloud hoặc production. Không tự đăng ký dịch vụ, commit, push hay deploy. PostgreSQL được cân nhắc cho nhiều instance; bản này tận dụng SQLite đang có, không tạo backend trùng lặp.
